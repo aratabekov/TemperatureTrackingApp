@@ -1,0 +1,112 @@
+package com.ksu.team.temperatureTrackingApp;
+
+import android.os.AsyncTask;
+import android.util.Log;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * Created by Amir on 10/22/14.
+ */
+public class JsonTask extends AsyncTask<String,Integer,List<TempReading>>{
+
+    private static final String TAG_ARRAY = "temperature";
+    private static final String TAG_ID = "id";
+    private static final String TAG_TEMP = "temp";
+    private static final String TAG_DATE = "date";
+
+    private TemperatureActivity activity;
+
+    public JsonTask(TemperatureActivity activity){
+        this.activity=activity;
+    }
+    protected List<TempReading> doInBackground(String... urls)  {
+
+
+
+        List<TempReading> list=new ArrayList<TempReading>();
+
+
+        DefaultHttpClient httpclient = new DefaultHttpClient();
+        HttpGet httpget = new HttpGet(urls[0]);
+
+
+        InputStream inputStream = null;
+        String result = null;
+        try {
+            HttpResponse response = httpclient.execute(httpget);
+
+            HttpEntity entity = response.getEntity();
+
+            inputStream = entity.getContent();
+            // json is UTF-8 by default
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"), 8);
+            StringBuilder sb = new StringBuilder();
+
+            String line = null;
+            while ((line = reader.readLine()) != null)
+            {
+                sb.append(line + "\n");
+            }
+            result = sb.toString();
+
+            JSONObject jsonObj = new JSONObject(result);
+            JSONArray temp_Array = jsonObj.getJSONArray(TAG_ARRAY);
+
+            this.activity.setProgressMessage("Retrieving data...");
+
+            for (int i = 0; i < temp_Array.length(); i++) {
+
+                publishProgress((int) ((i / (float) temp_Array.length()) * 100));
+
+                JSONObject reading = temp_Array.getJSONObject(i);
+
+                int id = Integer.valueOf(reading.getString(TAG_ID));
+                float temp = Float.valueOf(reading.getString(TAG_TEMP));
+
+                String str_date = reading.getString(TAG_DATE);
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                Date date = sdf.parse(str_date);
+
+                list.add(new TempReading(id,temp,date));
+
+            }
+
+
+        } catch (Exception e) {
+            // Oops
+            Log.d("Displaying","something went wrong "+e.toString());
+        }
+        finally {
+            try{if(inputStream != null)inputStream.close();}catch(Exception squish){}
+        }
+
+        Log.d("Displaying","displaying the "+result);
+
+        return list;
+    }
+
+    protected void onProgressUpdate(Integer... progress) {
+        activity.progressBar.setProgress(progress[0]);
+    }
+
+    protected void onPostExecute(List<TempReading> result) {
+        this.activity.setProgressMessage("Processing data...");
+        activity.onTempResult(result);
+    }
+
+
+}
