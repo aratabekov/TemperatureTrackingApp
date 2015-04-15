@@ -1,4 +1,4 @@
-package com.ksu.team.temperatureTrackingApp;
+package com.ksu.team.ThingSpeakClient;
 
 import com.jjoe64.graphview.GraphViewDataInterface;
 
